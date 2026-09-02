@@ -139,4 +139,68 @@ describe("explorer RPC", () => {
       { kind: "file", name: "index.ts", path: "src/index.ts" },
     ]);
   });
+
+  it("searches through the host entry including hidden files", async () => {
+    const { bb, harness } = createFakePluginHost({
+      pluginId: "file-explorer",
+      experimental_callHostRpc: async (call) => {
+        expect(call.method).toBe("searchPaths");
+        expect(call.hostId).toBe("host-1");
+        expect(call.input).toEqual({
+          rootPath: "/workspace/project",
+          query: ".env",
+          limit: 100,
+        });
+        return {
+          hits: [
+            {
+              kind: "file",
+              name: ".env",
+              path: ".env",
+            },
+            {
+              kind: "file",
+              name: ".env.local",
+              path: "src/.env.local",
+            },
+          ],
+          truncated: false,
+        };
+      },
+    });
+    harness.sdk.stub(
+      "threads.get",
+      async () =>
+        ({
+          id: "thread-1",
+          environmentId: "environment-1",
+          projectId: "project-1",
+        }) as never,
+    );
+    harness.sdk.stub(
+      "environments.get",
+      async () =>
+        ({
+          id: "environment-1",
+          hostId: "host-1",
+          path: "/workspace/project",
+          projectId: "project-1",
+        }) as never,
+    );
+
+    await plugin(bb);
+    const result = (await harness.behavior.callRpc("searchFiles", {
+      threadId: "thread-1",
+      query: ".env",
+    })) as {
+      hits: { kind: string; name: string; path: string }[];
+      truncated: boolean;
+    };
+
+    expect(result.truncated).toBe(false);
+    expect(result.hits).toEqual([
+      { kind: "file", name: ".env", path: ".env" },
+      { kind: "file", name: ".env.local", path: "src/.env.local" },
+    ]);
+  });
 });

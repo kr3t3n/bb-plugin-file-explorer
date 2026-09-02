@@ -1,7 +1,13 @@
 import path from "node:path";
 import { defineRpcContract, type BbPluginApi } from "@get-bb/plugin-sdk";
 import { z } from "zod";
+import {
+  HIDDEN_DIRECTORY_NAMES,
+  NOISE_DIRECTORY_NAMES,
+} from "./constants.js";
 import { hostContract } from "./contract.js";
+
+export { HIDDEN_DIRECTORY_NAMES, NOISE_DIRECTORY_NAMES };
 
 const explorerContextSchema = z.object({
   environmentId: z.string(),
@@ -24,6 +30,11 @@ const listChildrenInputSchema = threadInputSchema.extend({
   relativeDir: z.string().max(4096),
 });
 
+const searchFilesInputSchema = threadInputSchema.extend({
+  query: z.string().trim().min(1).max(256),
+  limit: z.number().int().positive().max(500).optional(),
+});
+
 export const rpcContract = defineRpcContract({
   getExplorerContext: {
     input: threadInputSchema,
@@ -37,25 +48,18 @@ export const rpcContract = defineRpcContract({
       truncated: z.boolean(),
     }),
   },
+  searchFiles: {
+    input: searchFilesInputSchema,
+    output: z.object({
+      context: explorerContextSchema,
+      hits: z.array(explorerEntrySchema),
+      truncated: z.boolean(),
+    }),
+  },
 });
 
 export type ExplorerContext = z.infer<typeof explorerContextSchema>;
 export type ExplorerEntry = z.infer<typeof explorerEntrySchema>;
-
-/** Generated / cache dirs to hide. Dotfiles and other hidden names stay visible. */
-export const NOISE_DIRECTORY_NAMES = new Set([
-  "__pycache__",
-  "build",
-  "coverage",
-  "dist",
-  "node_modules",
-  "out",
-  "target",
-  "venv",
-]);
-
-/** @deprecated Use NOISE_DIRECTORY_NAMES. Kept for older imports in tests. */
-export const HIDDEN_DIRECTORY_NAMES = NOISE_DIRECTORY_NAMES;
 
 const sortNames = new Intl.Collator(undefined, {
   numeric: true,
@@ -226,6 +230,28 @@ export default function plugin(bb: BbPluginApi) {
           listed.entries,
         ),
         truncated: listed.truncated,
+      };
+    },
+    async searchFiles({ threadId, query, limit }) {
+      const context = await getExplorerContext(threadId);
+      const result = await host.call(
+        "searchPaths",
+        {
+          rootPath: context.rootPath,
+          query,
+          limit: limit ?? 100,
+        },
+        { hostId: context.hostId },
+      );
+
+      return {
+        context,
+        hits: result.hits.map((hit) => ({
+          kind: hit.kind,
+          name: hit.name,
+          path: hit.path,
+        })),
+        truncated: result.truncated,
       };
     },
   });

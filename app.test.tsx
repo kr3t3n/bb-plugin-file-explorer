@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent } from "@testing-library/react";
+import { fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
   loadPluginApp,
@@ -9,7 +9,7 @@ import type { PluginThreadPanelProps } from "@get-bb/plugin-sdk/app";
 import type { rpcContract } from "./server";
 
 describe("File Explorer panel", () => {
-  it("registers a flush Files action and opens files in BB preview", async () => {
+  it("registers a flush Files action and opens files in File Editor", async () => {
     const app = await loadPluginApp(() => import("./app"));
     const action = app.threadPanelActions.find(({ id }) => id === "files");
 
@@ -58,6 +58,17 @@ describe("File Explorer panel", () => {
                   ],
             truncated: false,
           }),
+          searchFiles: () => ({
+            context,
+            hits: [
+              {
+                kind: "file" as const,
+                name: ".env",
+                path: ".env",
+              },
+            ],
+            truncated: false,
+          }),
         },
         openFilePreview: () => true,
       },
@@ -73,11 +84,24 @@ describe("File Explorer panel", () => {
           path: "README.md",
         },
         location: null,
+        viewer: {
+          pluginId: "monaco-editor",
+          openerId: "monaco",
+        },
       },
     });
 
     fireEvent.click(slot.getByText("src"));
     expect(await slot.findByText("index.ts")).toBeTruthy();
+
+    const search = slot.getByLabelText("Search workspace files");
+    fireEvent.change(search, { target: { value: ".env" } });
+    await waitFor(
+      () => {
+        expect(slot.getByText(".env")).toBeTruthy();
+      },
+      { timeout: 1000 },
+    );
 
     slot.lifecycle.unmount();
   });

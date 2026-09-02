@@ -1,6 +1,6 @@
 {
   "name": "bb-plugin-file-explorer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "A VS Code-style workspace tree for bb thread panels.",
   "engines": {
@@ -9,7 +9,7 @@
   },
   "bb": {
     "name": "File Explorer",
-    "description": "Browse a thread workspace and open files in BB's preview.",
+    "description": "Browse and search a thread workspace; open text files in BB File Editor.",
     "branding": {
       "icon": "./assets/icon.svg"
     },
