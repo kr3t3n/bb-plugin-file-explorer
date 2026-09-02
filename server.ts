@@ -35,6 +35,15 @@ const searchFilesInputSchema = threadInputSchema.extend({
   limit: z.number().int().positive().max(500).optional(),
 });
 
+const fileTargetInputSchema = threadInputSchema.extend({
+  path: z.string().min(1).max(4096),
+});
+
+const writeTextFileInputSchema = fileTargetInputSchema.extend({
+  content: z.string(),
+  expectedSha256: z.string().min(1),
+});
+
 export const rpcContract = defineRpcContract({
   getExplorerContext: {
     input: threadInputSchema,
@@ -55,6 +64,34 @@ export const rpcContract = defineRpcContract({
       hits: z.array(explorerEntrySchema),
       truncated: z.boolean(),
     }),
+  },
+  readTextFile: {
+    input: fileTargetInputSchema,
+    output: z.discriminatedUnion("kind", [
+      z.object({
+        kind: z.literal("text"),
+        content: z.string(),
+        sha256: z.string(),
+        absolutePath: z.string(),
+      }),
+      z.object({
+        kind: z.literal("unsupported"),
+        reason: z.string(),
+      }),
+    ]),
+  },
+  writeTextFile: {
+    input: writeTextFileInputSchema,
+    output: z.discriminatedUnion("outcome", [
+      z.object({
+        outcome: z.literal("written"),
+        sha256: z.string(),
+      }),
+      z.object({
+        outcome: z.literal("conflict"),
+        currentSha256: z.string().nullable(),
+      }),
+    ]),
   },
 });
 
@@ -95,6 +132,16 @@ export function normalizeRelativeDirectory(value: string): string {
   }
   return segments.join("/");
 }
+
+/** Same confinement as directories, but empty paths are rejected. */
+export function normalizeRelativeFilePath(value: string): string {
+  if (value === "") {
+    throw new Error("File path is required");
+  }
+  return normalizeRelativeDirectory(value);
+}
+
+const MAX_EDITABLE_BYTES = 8 * 1024 * 1024;
 
 function rootName(rootPath: string): string {
   const withoutTrailingSeparators = rootPath.replace(/[\\/]+$/, "");
@@ -253,6 +300,50 @@ export default function plugin(bb: BbPluginApi) {
         })),
         truncated: result.truncated,
       };
+    },
+    async readTextFile({ threadId, path: relativePath }) {
+      const safePath = normalizeRelativeFilePath(relativePath);
+      const context = await getExplorerContext(threadId);
+      const absolutePath = joinWorkspacePath(context.rootPath, safePath);
+      const file = await bb.sdk.files.read({
+        hostId: context.hostId,
+        path: absolutePath,
+        rootPath: context.rootPath,
+      });
+      if (file.contentEncoding !== "utf8") {
+        return { kind: "unsupported" as const, reason: "This file is not text" };
+      }
+      if (file.sizeBytes > MAX_EDITABLE_BYTES) {
+        return {
+          kind: "unsupported" as const,
+          reason: `This file is too large to edit (${Math.round(file.sizeBytes / 1024 / 1024)} MB)`,
+        };
+      }
+      return {
+        kind: "text" as const,
+        content: file.content,
+        sha256: file.sha256,
+        absolutePath: file.path,
+      };
+    },
+    async writeTextFile({ threadId, path: relativePath, content, expectedSha256 }) {
+      const safePath = normalizeRelativeFilePath(relativePath);
+      const context = await getExplorerContext(threadId);
+      const absolutePath = joinWorkspacePath(context.rootPath, safePath);
+      const result = await bb.sdk.files.write({
+        hostId: context.hostId,
+        path: absolutePath,
+        rootPath: context.rootPath,
+        content,
+        contentEncoding: "utf8",
+        expectedSha256,
+      });
+      return result.outcome === "written"
+        ? { outcome: "written" as const, sha256: result.sha256 }
+        : {
+            outcome: "conflict" as const,
+            currentSha256: result.currentSha256,
+          };
     },
   });
 }

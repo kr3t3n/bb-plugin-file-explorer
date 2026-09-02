@@ -1,8 +1,8 @@
 # File Explorer
 
 File Explorer adds a compact workspace tree to a closable tab in a bb thread's
-right panel. Folders load when expanded. Clicking a file opens BB's **File
-Editor** (Monaco) so you can edit and save text files. A search box finds files
+right panel. Folders load when expanded. Clicking a file opens an **Editor**
+tab where you can change text and save (Ctrl/Cmd+S). A search box finds files
 including hidden (dot) names that BB's built-in New Tab search skips.
 
 ## Install
@@ -16,18 +16,11 @@ bb plugin enable file-explorer
 bb plugin reload file-explorer
 ```
 
-Enable BB's File Editor as well (builtin):
-
-```sh
-bb plugin enable monaco-editor
-```
-
 From GitHub:
 
 ```sh
 bb plugin install git:https://github.com/kr3t3n/bb-plugin-file-explorer.git --yes
 bb plugin enable file-explorer
-bb plugin enable monaco-editor
 ```
 
 For development:
@@ -51,22 +44,23 @@ such as `.env` and `.gitignore`. It still skips generated directories:
 `node_modules`, `dist`, `build`, `coverage`, `out`, `target`, `venv`, and
 `__pycache__`.
 
-Clicking a file opens it through BB's file-opener pipeline. With **File Editor**
-enabled, matching text extensions open there for edit/save. Prefer **Automatic**
-or **File Editor** under **Settings → Files**. Dotfiles like `.env` often have
-no extension in BB's matcher, so they may open read-only unless you use Open
-with from a chat file link.
+Clicking a file opens the plugin **Editor** tab (not BB's read-only file
+preview). Save with the Save button or Ctrl/Cmd+S. Reload if the file changed
+on disk.
+
+BB's built-in File Editor (`monaco-editor`) remains available from Settings →
+Files / Open with on chat file links. This plugin uses its own editor because
+plugin navigate cannot force the Monaco opener from the Files tree.
 
 ## Access model
 
 The backend resolves the environment, host, and absolute workspace path from
-the supplied thread ID on every directory or search request. The client supplies
-only a workspace-relative directory or a search query. The backend rejects
-absolute paths, traversal, backslashes, and generated-directory segments, then
-lists or searches through the plugin host worker with `fs.readdir` so hidden
-names are included (BB's `files.listPaths` / New Tab search omits them).
+the supplied thread ID on every directory, search, read, or write request. The
+client supplies only a workspace-relative path or search query. The backend
+rejects absolute paths, traversal, backslashes, and generated-directory
+segments, then lists or searches through the plugin host worker with
+`fs.readdir` so hidden names are included (BB's `files.listPaths` / New Tab
+search omits them).
 
-The plugin does not read file contents or write, rename, or delete files. File
-opening uses BB's workspace file target with the resolved environment ID. BB's
-plugin navigate API only accepts `{ target, location }`; opener choice comes from
-Settings → Files and installed file openers (File Editor).
+Reads and writes use `bb.sdk.files` with CAS (`expectedSha256`) so a stale
+editor cannot overwrite newer disk content without a conflict.

@@ -23,6 +23,7 @@ import {
   useBbNavigate,
   useRpc,
 } from "@get-bb/plugin-sdk/app";
+import { TextEditorPanel } from "./editor";
 import type {
   ExplorerContext,
   ExplorerEntry,
@@ -265,24 +266,19 @@ function ExplorerPanel({ threadId }: { threadId: string }) {
 
   const openFile = useCallback(
     (entry: ExplorerEntry) => {
-      if (context === null) return;
       setOpenError(null);
-      // Plugin navigate validates to {target, location} only — a viewer override
-      // is stripped (and an enumerable viewer makes validation fail entirely).
-      // BB then picks File Editor via Settings → Files / Automatic openers.
-      const accepted = navigate.experimental_openFilePreview({
-        target: {
-          kind: "workspace",
-          environmentId: context.environmentId,
-          path: entry.path,
-        },
-        location: null,
+      // BB's preview/file-opener pipeline opens the read-only reader from this
+      // panel. Open our own editor tab instead so the file is editable.
+      const accepted = navigate.openThreadPanel({
+        actionId: "editor",
+        title: entry.name,
+        params: { path: entry.path },
       });
       if (!accepted) {
-        setOpenError("BB could not open the file from this panel.");
+        setOpenError("BB could not open the editor from this panel.");
       }
     },
-    [context, navigate],
+    [navigate],
   );
 
   const activateEntry = useCallback(
@@ -594,6 +590,14 @@ export default definePluginApp((app) => {
     title: "Files",
     icon: "Folder",
     component: ExplorerPanel,
+    layout: "flush",
+  });
+
+  app.slots.threadPanelAction({
+    id: "editor",
+    title: "Editor",
+    icon: "FileEdit",
+    component: TextEditorPanel,
     layout: "flush",
   });
 

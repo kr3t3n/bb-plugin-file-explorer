@@ -9,13 +9,19 @@ import type { PluginThreadPanelProps } from "@get-bb/plugin-sdk/app";
 import type { rpcContract } from "./server";
 
 describe("File Explorer panel", () => {
-  it("registers a flush Files action and opens files in File Editor", async () => {
+  it("registers Files + Editor actions and opens the editor tab", async () => {
     const app = await loadPluginApp(() => import("./app"));
     const action = app.threadPanelActions.find(({ id }) => id === "files");
+    const editor = app.threadPanelActions.find(({ id }) => id === "editor");
 
     expect(action).toMatchObject({
       id: "files",
       title: "Files",
+      layout: "flush",
+    });
+    expect(editor).toMatchObject({
+      id: "editor",
+      title: "Editor",
       layout: "flush",
     });
     expect(action).toBeDefined();
@@ -69,21 +75,28 @@ describe("File Explorer panel", () => {
             ],
             truncated: false,
           }),
+          readTextFile: () => ({
+            kind: "text" as const,
+            content: "",
+            sha256: "abc",
+            absolutePath: "/workspace/project/README.md",
+          }),
+          writeTextFile: () => ({
+            outcome: "written" as const,
+            sha256: "def",
+          }),
         },
-        openFilePreview: () => true,
+        openThreadPanel: () => true,
       },
     );
 
     fireEvent.click(await slot.findByText("README.md"));
     expect(slot.inspection.navigateCalls).toContainEqual({
-      method: "experimental_openFilePreview",
+      method: "openThreadPanel",
       options: {
-        target: {
-          kind: "workspace",
-          environmentId: "environment-1",
-          path: "README.md",
-        },
-        location: null,
+        actionId: "editor",
+        title: "README.md",
+        params: { path: "README.md" },
       },
     });
 

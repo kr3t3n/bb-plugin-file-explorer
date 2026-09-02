@@ -4,6 +4,7 @@ import plugin, {
   immediateChildren,
   joinWorkspacePath,
   normalizeRelativeDirectory,
+  normalizeRelativeFilePath,
   projectExplorerEntries,
 } from "./server";
 
@@ -13,6 +14,15 @@ describe("path confinement", () => {
     expect(normalizeRelativeDirectory(".git/objects")).toBe(".git/objects");
     expect(normalizeRelativeDirectory(".claude")).toBe(".claude");
     expect(normalizeRelativeDirectory("")).toBe("");
+  });
+
+  it("accepts relative file paths including hidden files", () => {
+    expect(normalizeRelativeFilePath(".env")).toBe(".env");
+    expect(normalizeRelativeFilePath("src/.env.local")).toBe("src/.env.local");
+  });
+
+  it("rejects empty file paths", () => {
+    expect(() => normalizeRelativeFilePath("")).toThrow();
   });
 
   it.each([
