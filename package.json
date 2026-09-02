@@ -1,6 +1,6 @@
 {
   "name": "bb-plugin-file-explorer",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "description": "A VS Code-style workspace tree for bb thread panels.",
   "engines": {

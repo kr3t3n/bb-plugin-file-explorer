@@ -23,7 +23,6 @@ import {
   useBbNavigate,
   useRpc,
 } from "@get-bb/plugin-sdk/app";
-import { FILE_EDITOR_VIEWER } from "./constants";
 import type {
   ExplorerContext,
   ExplorerEntry,
@@ -268,19 +267,19 @@ function ExplorerPanel({ threadId }: { threadId: string }) {
     (entry: ExplorerEntry) => {
       if (context === null) return;
       setOpenError(null);
-      const options = {
+      // Plugin navigate validates to {target, location} only — a viewer override
+      // is stripped (and an enumerable viewer makes validation fail entirely).
+      // BB then picks File Editor via Settings → Files / Automatic openers.
+      const accepted = navigate.experimental_openFilePreview({
         target: {
-          kind: "workspace" as const,
+          kind: "workspace",
           environmentId: context.environmentId,
           path: entry.path,
         },
         location: null,
-        // Prefer BB File Editor (monaco). Host falls back to preview if unavailable.
-        viewer: FILE_EDITOR_VIEWER,
-      };
-      const accepted = navigate.experimental_openFilePreview(options);
+      });
       if (!accepted) {
-        setOpenError("BB could not open the file editor from this panel.");
+        setOpenError("BB could not open the file from this panel.");
       }
     },
     [context, navigate],

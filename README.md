@@ -51,8 +51,11 @@ such as `.env` and `.gitignore`. It still skips generated directories:
 `node_modules`, `dist`, `build`, `coverage`, `out`, `target`, `venv`, and
 `__pycache__`.
 
-Clicking a file opens it with **File Editor** (`monaco-editor`). If that plugin
-is disabled, BB falls back to the read-only preview.
+Clicking a file opens it through BB's file-opener pipeline. With **File Editor**
+enabled, matching text extensions open there for edit/save. Prefer **Automatic**
+or **File Editor** under **Settings → Files**. Dotfiles like `.env` often have
+no extension in BB's matcher, so they may open read-only unless you use Open
+with from a chat file link.
 
 ## Access model
 
@@ -64,5 +67,6 @@ lists or searches through the plugin host worker with `fs.readdir` so hidden
 names are included (BB's `files.listPaths` / New Tab search omits them).
 
 The plugin does not read file contents or write, rename, or delete files. File
-opening uses BB's workspace file-opener target with the File Editor viewer
-override and the resolved environment ID.
+opening uses BB's workspace file target with the resolved environment ID. BB's
+plugin navigate API only accepts `{ target, location }`; opener choice comes from
+Settings → Files and installed file openers (File Editor).

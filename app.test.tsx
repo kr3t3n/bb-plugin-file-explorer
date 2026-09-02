@@ -84,10 +84,6 @@ describe("File Explorer panel", () => {
           path: "README.md",
         },
         location: null,
-        viewer: {
-          pluginId: "monaco-editor",
-          openerId: "monaco",
-        },
       },
     });
 

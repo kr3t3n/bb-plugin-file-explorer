@@ -12,8 +12,3 @@ export const NOISE_DIRECTORY_NAMES = new Set([
 
 /** @deprecated Use NOISE_DIRECTORY_NAMES. Kept for older imports in tests. */
 export const HIDDEN_DIRECTORY_NAMES = NOISE_DIRECTORY_NAMES;
-
-export const FILE_EDITOR_VIEWER = {
-  pluginId: "monaco-editor",
-  openerId: "monaco",
-} as const;
