@@ -52,7 +52,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cron-parser": "^5.10.0",
-    "hono": "^4.11.9",
+    "hono": "^4.13.13",
     "jsdom": "^29.1.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
